@@ -1,0 +1,199 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ============================================
+// OPERATORS & USERS
+// ============================================
+
+model Operator {
+  id                  String   @id @default(uuid())
+  companyNameAr       String   @map("company_name_ar")
+  companyNameEn       String   @map("company_name_en")
+  licenseNumber       String   @unique @map("license_number")
+  email               String   @unique
+  phone               String
+  subscriptionPlan    String   @default("starter") @map("subscription_plan") // starter, growth, enterprise
+  subscriptionStatus  String   @default("active") @map("subscription_status")
+  createdAt           DateTime @default(now()) @map("created_at")
+  updatedAt           DateTime @updatedAt @map("updated_at")
+
+  users               OperatorUser[]
+  tours               Tour[]
+  resources           Resource[]
+  ministryReports     MinistryReport[]
+
+  @@map("operators")
+}
+
+model OperatorUser {
+  id           String   @id @default(uuid())
+  operatorId   String   @map("operator_id")
+  email        String   @unique
+  passwordHash String   @map("password_hash")
+  role         String   // admin, staff, agent
+  isActive     Boolean  @default(true) @map("is_active")
+  createdAt    DateTime @default(now()) @map("created_at")
+
+  operator     Operator @relation(fields: [operatorId], references: [id], onDelete: Cascade)
+
+  @@map("operator_users")
+}
+
+// ============================================
+// TOURS & SCHEDULES
+// ============================================
+
+model Tour {
+  id              String   @id @default(uuid())
+  operatorId      String   @map("operator_id")
+  titleAr         String   @map("title_ar")
+  titleEn         String   @map("title_en")
+  descriptionAr   String?  @map("description_ar") @db.Text
+  descriptionEn   String?  @map("description_en") @db.Text
+  durationHours   Int      @map("duration_hours")
+  maxCapacity     Int      @map("max_capacity")
+  basePriceSar    Decimal  @map("base_price_sar") @db.Decimal(10, 2)
+  category        String   // cultural, adventure, desert, city, etc.
+  isActive        Boolean  @default(true) @map("is_active")
+  createdAt       DateTime @default(now()) @map("created_at")
+  updatedAt       DateTime @updatedAt @map("updated_at")
+
+  operator        Operator @relation(fields: [operatorId], references: [id], onDelete: Cascade)
+  schedules       TourSchedule[]
+
+  @@map("tours")
+}
+
+model TourSchedule {
+  id                String   @id @default(uuid())
+  tourId            String   @map("tour_id")
+  departureDatetime DateTime @map("departure_datetime")
+  availableSpots    Int      @map("available_spots")
+  priceOverride     Decimal? @map("price_override") @db.Decimal(10, 2)
+  status            String   @default("available") // available, full, cancelled
+  createdAt         DateTime @default(now()) @map("created_at")
+
+  tour              Tour     @relation(fields: [tourId], references: [id], onDelete: Cascade)
+  bookings          Booking[]
+  resourceAssignments ResourceAssignment[]
+
+  @@map("tour_schedules")
+}
+
+// ============================================
+// BOOKINGS
+// ============================================
+
+model Booking {
+  id                String   @id @default(uuid())
+  scheduleId        String   @map("schedule_id")
+  customerName      String   @map("customer_name")
+  customerEmail     String   @map("customer_email")
+  customerPhone     String   @map("customer_phone")
+  numGuests         Int      @map("num_guests")
+  totalPriceSar     Decimal  @map("total_price_sar") @db.Decimal(10, 2)
+  bookingStatus     String   @default("pending") @map("booking_status") // pending, confirmed, cancelled, completed
+  paymentStatus     String   @default("unpaid") @map("payment_status") // unpaid, paid, refunded
+  bookingReference  String   @unique @map("booking_reference")
+  createdAt         DateTime @default(now()) @map("created_at")
+  updatedAt         DateTime @updatedAt @map("updated_at")
+
+  schedule          TourSchedule @relation(fields: [scheduleId], references: [id], onDelete: Cascade)
+  guests            BookingGuest[]
+  payment           Payment?
+
+  @@map("bookings")
+}
+
+model BookingGuest {
+  id              String   @id @default(uuid())
+  bookingId       String   @map("booking_id")
+  guestName       String   @map("guest_name")
+  guestAge        Int?     @map("guest_age")
+  guestNationality String? @map("guest_nationality")
+  waiverSigned    Boolean  @default(false) @map("waiver_signed")
+  checkedIn       Boolean  @default(false) @map("checked_in")
+  createdAt       DateTime @default(now()) @map("created_at")
+
+  booking         Booking  @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+
+  @@map("booking_guests")
+}
+
+// ============================================
+// PAYMENTS
+// ============================================
+
+model Payment {
+  id              String   @id @default(uuid())
+  bookingId       String   @unique @map("booking_id")
+  paymentGateway  String   @map("payment_gateway") // moyasar, sadad, etc.
+  amountSar       Decimal  @map("amount_sar") @db.Decimal(10, 2)
+  transactionId   String?  @map("transaction_id")
+  paymentStatus   String   @default("pending") @map("payment_status") // pending, completed, failed, refunded
+  paymentMethod   String?  @map("payment_method") // mada, visa, apple_pay
+  paymentDate     DateTime? @map("payment_date")
+  webhookData     Json?    @map("webhook_data")
+  createdAt       DateTime @default(now()) @map("created_at")
+
+  booking         Booking  @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+
+  @@map("payments")
+}
+
+// ============================================
+// RESOURCES (Guides, Vehicles, Equipment)
+// ============================================
+
+model Resource {
+  id                   String   @id @default(uuid())
+  operatorId           String   @map("operator_id")
+  resourceType         String   @map("resource_type") // guide, vehicle, equipment
+  resourceName         String   @map("resource_name")
+  externalId           String?  @map("external_id") // Link to Desert Rose guide
+  maxDailyAssignments  Int      @default(1) @map("max_daily_assignments")
+  isActive             Boolean  @default(true) @map("is_active")
+  createdAt            DateTime @default(now()) @map("created_at")
+
+  operator             Operator @relation(fields: [operatorId], references: [id], onDelete: Cascade)
+  assignments          ResourceAssignment[]
+
+  @@map("resources")
+}
+
+model ResourceAssignment {
+  id           String   @id @default(uuid())
+  resourceId   String   @map("resource_id")
+  scheduleId   String   @map("schedule_id")
+  assignedAt   DateTime @default(now()) @map("assigned_at")
+
+  resource     Resource @relation(fields: [resourceId], references: [id], onDelete: Cascade)
+  schedule     TourSchedule @relation(fields: [scheduleId], references: [id], onDelete: Cascade)
+
+  @@unique([resourceId, scheduleId])
+  @@map("resource_assignments")
+}
+
+// ============================================
+// MINISTRY COMPLIANCE
+// ============================================
+
+model MinistryReport {
+  id           String   @id @default(uuid())
+  operatorId   String   @map("operator_id")
+  reportType   String   @map("report_type") // monthly_bookings, revenue, demographics
+  reportPeriod String   @map("report_period") // 2026-01, 2026-Q1
+  reportData   Json     @map("report_data")
+  submittedAt  DateTime? @map("submitted_at")
+  createdAt    DateTime @default(now()) @map("created_at")
+
+  operator     Operator @relation(fields: [operatorId], references: [id], onDelete: Cascade)
+
+  @@map("ministry_reports")
+}

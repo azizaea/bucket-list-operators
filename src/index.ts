@@ -5,6 +5,7 @@ import { PrismaClient } from '@prisma/client';
 import authRoutes from './routes/auth.js';
 import tourRoutes from './routes/tours.js';
 import bookingRoutes from './routes/bookings.js';
+import reportRoutes from './routes/reports.js';
 
 // Load environment variables
 dotenv.config();
@@ -27,6 +28,7 @@ app.get('/', (req: Request, res: Response) => {
       auth: '/api/auth',
       tours: '/api/tours',
       bookings: '/api/bookings',
+      reports: '/api/reports',
     },
   });
 });
@@ -53,6 +55,7 @@ app.get('/health', async (req: Request, res: Response) => {
 app.use('/api/auth', authRoutes);
 app.use('/api/tours', tourRoutes);
 app.use('/api/bookings', bookingRoutes);
+app.use('/api/reports', reportRoutes);
 
 // Start server
 const PORT = process.env.PORT || 3000;
@@ -77,7 +80,12 @@ const server = app.listen(PORT, () => {
   console.log(`   - GET    /api/bookings/schedules/:tourId`);
   console.log(`   - POST   /api/bookings`);
   console.log(`   - GET    /api/bookings`);
-  console.log(`   - GET    /api/bookings/:id\n`);
+  console.log(`   - GET    /api/bookings/:id`);
+  console.log(`\n   MINISTRY REPORTS:`);
+  console.log(`   - GET    /api/reports/monthly-bookings?year=2026&month=3`);
+  console.log(`   - GET    /api/reports/revenue?year=2026&month=3`);
+  console.log(`   - GET    /api/reports/demographics?year=2026&month=3`);
+  console.log(`   - GET    /api/reports/export-csv?reportType=bookings&year=2026&month=3\n`);
 });
 
 // Graceful shutdown

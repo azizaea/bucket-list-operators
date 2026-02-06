@@ -4,6 +4,7 @@ import dotenv from 'dotenv';
 import { PrismaClient } from '@prisma/client';
 import authRoutes from './routes/auth.js';
 import tourRoutes from './routes/tours.js';
+import bookingRoutes from './routes/bookings.js';
 
 // Load environment variables
 dotenv.config();
@@ -25,6 +26,7 @@ app.get('/', (req: Request, res: Response) => {
     endpoints: {
       auth: '/api/auth',
       tours: '/api/tours',
+      bookings: '/api/bookings',
     },
   });
 });
@@ -50,6 +52,7 @@ app.get('/health', async (req: Request, res: Response) => {
 // Mount routes
 app.use('/api/auth', authRoutes);
 app.use('/api/tours', tourRoutes);
+app.use('/api/bookings', bookingRoutes);
 
 // Start server
 const PORT = process.env.PORT || 3000;
@@ -57,15 +60,24 @@ const server = app.listen(PORT, () => {
   console.log(`🚀 Bucket List - Operators API running on http://localhost:${PORT}`);
   console.log(`📊 Database: Connected to PostgreSQL`);
   console.log(`🔧 Environment: ${process.env.NODE_ENV || 'development'}`);
-  console.log(`📍 Endpoints:`);
+  console.log(`\n📍 Available Endpoints:`);
+  console.log(`\n   AUTH:`);
   console.log(`   - POST   /api/auth/register`);
   console.log(`   - POST   /api/auth/login`);
+  console.log(`   - POST   /api/auth/refresh`);
   console.log(`   - GET    /api/auth/me`);
+  console.log(`\n   TOURS:`);
   console.log(`   - POST   /api/tours`);
   console.log(`   - GET    /api/tours`);
   console.log(`   - GET    /api/tours/:id`);
   console.log(`   - PUT    /api/tours/:id`);
   console.log(`   - DELETE /api/tours/:id`);
+  console.log(`\n   BOOKINGS:`);
+  console.log(`   - POST   /api/bookings/schedules/:tourId`);
+  console.log(`   - GET    /api/bookings/schedules/:tourId`);
+  console.log(`   - POST   /api/bookings`);
+  console.log(`   - GET    /api/bookings`);
+  console.log(`   - GET    /api/bookings/:id\n`);
 });
 
 // Graceful shutdown

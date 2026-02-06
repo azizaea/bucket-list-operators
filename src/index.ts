@@ -3,6 +3,7 @@ import cors from 'cors';
 import dotenv from 'dotenv';
 import { PrismaClient } from '@prisma/client';
 import authRoutes from './routes/auth.js';
+import tourRoutes from './routes/tours.js';
 
 // Load environment variables
 dotenv.config();
@@ -21,6 +22,10 @@ app.get('/', (req: Request, res: Response) => {
     message: 'Bucket List - Operators API',
     status: 'running',
     version: '1.0.0',
+    endpoints: {
+      auth: '/api/auth',
+      tours: '/api/tours',
+    },
   });
 });
 
@@ -42,8 +47,9 @@ app.get('/health', async (req: Request, res: Response) => {
   }
 });
 
-// Mount auth routes
+// Mount routes
 app.use('/api/auth', authRoutes);
+app.use('/api/tours', tourRoutes);
 
 // Start server
 const PORT = process.env.PORT || 3000;
@@ -51,6 +57,15 @@ const server = app.listen(PORT, () => {
   console.log(`🚀 Bucket List - Operators API running on http://localhost:${PORT}`);
   console.log(`📊 Database: Connected to PostgreSQL`);
   console.log(`🔧 Environment: ${process.env.NODE_ENV || 'development'}`);
+  console.log(`📍 Endpoints:`);
+  console.log(`   - POST   /api/auth/register`);
+  console.log(`   - POST   /api/auth/login`);
+  console.log(`   - GET    /api/auth/me`);
+  console.log(`   - POST   /api/tours`);
+  console.log(`   - GET    /api/tours`);
+  console.log(`   - GET    /api/tours/:id`);
+  console.log(`   - PUT    /api/tours/:id`);
+  console.log(`   - DELETE /api/tours/:id`);
 });
 
 // Graceful shutdown

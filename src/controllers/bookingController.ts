@@ -1,6 +1,7 @@
 import { Response } from 'express';
-import { PrismaClient } from '@prisma/client';
+import { PrismaClient, Prisma } from '@prisma/client';
 import { AuthRequest } from '../middleware/auth.js';
+import { sendBookingConfirmation, sendOperatorNotification } from '../utils/email.js';
 
 const prisma = new PrismaClient();
 
@@ -10,7 +11,7 @@ const prisma = new PrismaClient();
 export async function createSchedule(req: AuthRequest, res: Response): Promise<void> {
   try {
     const operatorId = req.user?.operatorId;
-    const tourId = req.params.tourId;
+    const tourId = req.params.tourId as string;
 
     if (!operatorId) {
       res.status(401).json({
@@ -76,7 +77,7 @@ export async function createSchedule(req: AuthRequest, res: Response): Promise<v
 export async function getSchedules(req: AuthRequest, res: Response): Promise<void> {
   try {
     const operatorId = req.user?.operatorId;
-    const tourId = req.params.tourId;
+    const tourId = req.params.tourId as string;
 
     if (!operatorId) {
       res.status(401).json({
@@ -175,7 +176,14 @@ export async function createBooking(req: AuthRequest, res: Response): Promise<vo
         include: {
           tour: {
             include: {
-              operator: true,
+              operator: {
+                include: {
+                  users: {
+                    where: { role: 'admin' },
+                    take: 1,
+                  },
+                },
+              },
             },
           },
         },
@@ -202,7 +210,7 @@ export async function createBooking(req: AuthRequest, res: Response): Promise<vo
       // Generate booking reference
       const bookingReference = `BKG-${Date.now()}-${Math.random().toString(36).substring(2, 11).toUpperCase()}`;
 
-      // Create booking (Prisma uses camelCase)
+      // Create booking
       const newBooking = await tx.booking.create({
         data: {
           scheduleId,
@@ -215,7 +223,7 @@ export async function createBooking(req: AuthRequest, res: Response): Promise<vo
           paymentStatus: 'unpaid',
           bookingReference,
           bookingNotes: bookingNotes ?? null,
-        },
+        } as Prisma.BookingUncheckedCreateInput,
       });
 
       // Create guest records if provided
@@ -238,12 +246,12 @@ export async function createBooking(req: AuthRequest, res: Response): Promise<vo
         },
       });
 
-      return newBooking;
+      return { newBooking, schedule };
     });
 
     // Fetch complete booking with guests
     const completeBooking = await prisma.booking.findUnique({
-      where: { id: booking.id },
+      where: { id: booking.newBooking.id },
       include: {
         guests: true,
         schedule: {
@@ -252,6 +260,36 @@ export async function createBooking(req: AuthRequest, res: Response): Promise<vo
           },
         },
       },
+    });
+
+    // Send emails asynchronously (don't wait for them)
+    Promise.all([
+      sendBookingConfirmation({
+        customerEmail,
+        customerName,
+        bookingReference: booking.newBooking.bookingReference,
+        tourName: booking.schedule.tour.titleEn,
+        tourNameAr: booking.schedule.tour.titleAr ?? '',
+        departureDate: booking.schedule.departureDatetime,
+        numGuests,
+        totalPrice: Number(booking.newBooking.totalPriceSar),
+        meetingPoint: (booking.schedule.tour as { meetingPoint?: string | null }).meetingPoint ?? undefined,
+        meetingPointInstructions: (booking.schedule.tour as { meetingPointInstructions?: string | null }).meetingPointInstructions ?? undefined,
+      }),
+      sendOperatorNotification({
+        operatorEmail: booking.schedule.tour.operator.users[0]?.email ?? 'operator@bucketlist.sa',
+        operatorName: booking.schedule.tour.operator.companyNameEn,
+        bookingReference: booking.newBooking.bookingReference,
+        tourName: booking.schedule.tour.titleEn,
+        customerName,
+        customerEmail,
+        customerPhone: customerPhone ?? 'Not provided',
+        departureDate: booking.schedule.departureDatetime,
+        numGuests,
+        totalPrice: Number(booking.newBooking.totalPriceSar),
+      }),
+    ]).catch((err) => {
+      console.error('Failed to send booking emails:', err);
     });
 
     res.status(201).json({
@@ -386,7 +424,7 @@ export async function getBookings(req: AuthRequest, res: Response): Promise<void
 export async function getBooking(req: AuthRequest, res: Response): Promise<void> {
   try {
     const operatorId = req.user?.operatorId;
-    const bookingId = req.params.id;
+    const bookingId = req.params.id as string;
 
     if (!operatorId) {
       res.status(401).json({

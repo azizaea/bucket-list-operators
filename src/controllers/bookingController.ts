@@ -146,16 +146,29 @@ export async function createBooking(req: AuthRequest, res: Response): Promise<vo
       customerPhone,
       numGuests,
       guests,
+      bookingNotes,
     } = req.body;
 
+    // Validate required fields
     if (!scheduleId || !customerName || !customerEmail || !numGuests) {
       res.status(400).json({
         success: false,
-        error: 'Missing required fields',
+        error: 'Missing required fields: scheduleId, customerName, customerEmail, numGuests',
       });
       return;
     }
 
+    // Validate email format
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(customerEmail)) {
+      res.status(400).json({
+        success: false,
+        error: 'Invalid email format',
+      });
+      return;
+    }
+
+    // Use transaction to prevent race conditions
     const booking = await prisma.$transaction(async (tx) => {
       const schedule = await tx.tourSchedule.findUnique({
         where: { id: scheduleId },
@@ -172,19 +185,24 @@ export async function createBooking(req: AuthRequest, res: Response): Promise<vo
         throw new Error('Schedule not found');
       }
 
+      // Verify schedule belongs to operator's tour
       if (schedule.tour.operatorId !== operatorId) {
         throw new Error('Unauthorized');
       }
 
+      // Check availability
       if (schedule.availableSpots < numGuests) {
         throw new Error(`Only ${schedule.availableSpots} spots available`);
       }
 
+      // Calculate total price
       const pricePerPerson = schedule.priceOverride ?? schedule.tour.basePriceSar;
       const totalPrice = Number(pricePerPerson) * numGuests;
 
+      // Generate booking reference
       const bookingReference = `BKG-${Date.now()}-${Math.random().toString(36).substring(2, 11).toUpperCase()}`;
 
+      // Create booking (Prisma uses camelCase)
       const newBooking = await tx.booking.create({
         data: {
           scheduleId,
@@ -196,9 +214,11 @@ export async function createBooking(req: AuthRequest, res: Response): Promise<vo
           bookingStatus: 'pending',
           paymentStatus: 'unpaid',
           bookingReference,
+          bookingNotes: bookingNotes ?? null,
         },
       });
 
+      // Create guest records if provided
       if (guests && Array.isArray(guests)) {
         await tx.bookingGuest.createMany({
           data: guests.map((guest: { name: string; age?: number; nationality?: string }) => ({
@@ -210,6 +230,7 @@ export async function createBooking(req: AuthRequest, res: Response): Promise<vo
         });
       }
 
+      // Update available spots
       await tx.tourSchedule.update({
         where: { id: scheduleId },
         data: {
@@ -220,6 +241,7 @@ export async function createBooking(req: AuthRequest, res: Response): Promise<vo
       return newBooking;
     });
 
+    // Fetch complete booking with guests
     const completeBooking = await prisma.booking.findUnique({
       where: { id: booking.id },
       include: {
@@ -260,6 +282,14 @@ export async function createBooking(req: AuthRequest, res: Response): Promise<vo
         res.status(404).json({
           success: false,
           error: error.message,
+        });
+        return;
+      }
+
+      if (error.message === 'Invalid email format') {
+        res.status(400).json({
+          success: false,
+          error: 'Invalid email format',
         });
         return;
       }

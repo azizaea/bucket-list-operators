@@ -28,29 +28,41 @@ export async function createTour(req: AuthRequest, res: Response): Promise<void>
       maxCapacity,
       basePriceSar,
       category,
+      highlights,
+      inclusions,
+      exclusions,
+      meetingPoint,
+      meetingPointInstructions,
+      importantNotes,
     } = req.body;
 
     // Validate required fields
     if (!titleEn || !durationHours || !maxCapacity || !basePriceSar) {
       res.status(400).json({
         success: false,
-        error: 'Missing required fields: titleEn, durationHours, maxCapacity, basePriceSar',
+        error: 'titleEn, durationHours, maxCapacity, and basePriceSar are required',
       });
       return;
     }
 
-    // Create tour (Prisma uses camelCase; schema has no highlights/inclusions/exclusions)
+    // Create tour with advanced fields (Prisma uses camelCase)
     const tour = await prisma.tour.create({
       data: {
         operatorId,
         titleEn,
-        titleAr: titleAr || titleEn,
+        titleAr: titleAr ?? titleEn,
         descriptionEn: descriptionEn ?? null,
         descriptionAr: descriptionAr ?? null,
         durationHours,
         maxCapacity,
         basePriceSar,
-        category: category || 'cultural',
+        category: category ?? 'cultural',
+        highlights: Array.isArray(highlights) ? highlights : [],
+        inclusions: Array.isArray(inclusions) ? inclusions : [],
+        exclusions: Array.isArray(exclusions) ? exclusions : [],
+        meetingPoint: meetingPoint ?? null,
+        meetingPointInstructions: meetingPointInstructions ?? null,
+        importantNotes: importantNotes ?? null,
         isActive: true,
       },
     });
@@ -89,26 +101,37 @@ export async function getTours(req: AuthRequest, res: Response): Promise<void> {
     const skip = (page - 1) * limit;
 
     // Filters
-    const isActive = req.query.isActive === 'true' ? true :
-                     req.query.isActive === 'false' ? false :
-                     undefined;
-
+    const isActive = req.query.isActive;
     const category = req.query.category as string;
+    const search = req.query.search as string;
 
-    // Build where clause
-    const where: { operatorId: string; isActive?: boolean; category?: string } = {
+    // Build where clause (Prisma uses camelCase)
+    const where: {
+      operatorId: string;
+      isActive?: boolean;
+      category?: string;
+      OR?: Array<Record<string, { contains: string; mode: 'insensitive' }>>;
+    } = {
       operatorId,
     };
 
     if (isActive !== undefined) {
-      where.isActive = isActive;
+      where.isActive = isActive === 'true';
     }
 
     if (category) {
       where.category = category;
     }
 
-    // Get tours with pagination
+    if (search) {
+      where.OR = [
+        { titleEn: { contains: search, mode: 'insensitive' } },
+        { titleAr: { contains: search, mode: 'insensitive' } },
+        { descriptionEn: { contains: search, mode: 'insensitive' } },
+        { descriptionAr: { contains: search, mode: 'insensitive' } },
+      ];
+    }
+
     const [tours, total] = await Promise.all([
       prisma.tour.findMany({
         where,
@@ -202,7 +225,7 @@ export async function updateTour(req: AuthRequest, res: Response): Promise<void>
       return;
     }
 
-    // Check if tour exists and belongs to operator
+    // Verify tour belongs to operator
     const existingTour = await prisma.tour.findFirst({
       where: {
         id: tourId,
@@ -227,10 +250,16 @@ export async function updateTour(req: AuthRequest, res: Response): Promise<void>
       maxCapacity,
       basePriceSar,
       category,
+      highlights,
+      inclusions,
+      exclusions,
+      meetingPoint,
+      meetingPointInstructions,
+      importantNotes,
       isActive,
     } = req.body;
 
-    // Build update data (only include provided fields)
+    // Build update data (only include fields that are provided)
     const updateData: Record<string, unknown> = {};
 
     if (titleEn !== undefined) updateData.titleEn = titleEn;
@@ -241,9 +270,14 @@ export async function updateTour(req: AuthRequest, res: Response): Promise<void>
     if (maxCapacity !== undefined) updateData.maxCapacity = maxCapacity;
     if (basePriceSar !== undefined) updateData.basePriceSar = basePriceSar;
     if (category !== undefined) updateData.category = category;
+    if (highlights !== undefined) updateData.highlights = Array.isArray(highlights) ? highlights : [];
+    if (inclusions !== undefined) updateData.inclusions = Array.isArray(inclusions) ? inclusions : [];
+    if (exclusions !== undefined) updateData.exclusions = Array.isArray(exclusions) ? exclusions : [];
+    if (meetingPoint !== undefined) updateData.meetingPoint = meetingPoint;
+    if (meetingPointInstructions !== undefined) updateData.meetingPointInstructions = meetingPointInstructions;
+    if (importantNotes !== undefined) updateData.importantNotes = importantNotes;
     if (isActive !== undefined) updateData.isActive = isActive;
 
-    // Update tour
     const tour = await prisma.tour.update({
       where: { id: tourId },
       data: updateData,

@@ -102,8 +102,10 @@ export async function getTours(req: AuthRequest, res: Response): Promise<void> {
 
     // Filters
     const isActive = req.query.isActive;
-    const category = req.query.category as string;
-    const search = req.query.search as string;
+    const categoryParam = req.query.category;
+    const searchParam = req.query.search;
+    const category = Array.isArray(categoryParam) ? categoryParam[0] : categoryParam;
+    const search = Array.isArray(searchParam) ? searchParam[0] : searchParam;
 
     // Build where clause (Prisma uses camelCase)
     const where: {
@@ -119,11 +121,11 @@ export async function getTours(req: AuthRequest, res: Response): Promise<void> {
       where.isActive = isActive === 'true';
     }
 
-    if (category) {
+    if (category && typeof category === 'string') {
       where.category = category;
     }
 
-    if (search) {
+    if (search && typeof search === 'string') {
       where.OR = [
         { titleEn: { contains: search, mode: 'insensitive' } },
         { titleAr: { contains: search, mode: 'insensitive' } },
@@ -171,7 +173,7 @@ export async function getTours(req: AuthRequest, res: Response): Promise<void> {
 export async function getTour(req: AuthRequest, res: Response): Promise<void> {
   try {
     const operatorId = req.user?.operatorId;
-    const tourId = req.params.id;
+    const tourId = String(req.params.id || '');
 
     if (!operatorId) {
       res.status(401).json({
@@ -215,7 +217,7 @@ export async function getTour(req: AuthRequest, res: Response): Promise<void> {
 export async function updateTour(req: AuthRequest, res: Response): Promise<void> {
   try {
     const operatorId = req.user?.operatorId;
-    const tourId = req.params.id;
+    const tourId = String(req.params.id || '');
 
     if (!operatorId) {
       res.status(401).json({
@@ -302,7 +304,7 @@ export async function updateTour(req: AuthRequest, res: Response): Promise<void>
 export async function deleteTour(req: AuthRequest, res: Response): Promise<void> {
   try {
     const operatorId = req.user?.operatorId;
-    const tourId = req.params.id;
+    const tourId = String(req.params.id || '');
 
     if (!operatorId) {
       res.status(401).json({

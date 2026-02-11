@@ -6,11 +6,12 @@ const JWT_REFRESH_SECRET = process.env.JWT_REFRESH_SECRET || 'your-refresh-secre
 const ACCESS_TOKEN_EXPIRY = '15m'; // 15 minutes
 const REFRESH_TOKEN_EXPIRY = '7d'; // 7 days
 
-interface TokenPayload {
+export interface TokenPayload {
   userId: string;
-  operatorId: string;
+  operatorId?: string;  // Present for operator users
+  guideId?: string;    // Present for guide users
   email: string;
-  role: string;
+  role: string;        // 'admin' | 'staff' | 'agent' | 'guide'
 }
 
 /**

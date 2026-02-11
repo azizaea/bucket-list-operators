@@ -5,9 +5,10 @@ import { verifyAccessToken } from '../utils/jwt.js';
 export interface AuthRequest extends Request {
   user?: {
     userId: string;
-    operatorId: string;
+    operatorId?: string;   // Present for operator users (admin, staff, agent)
+    guideId?: string;     // Present for guide role
     email: string;
-    role: string;
+    role: string;         // 'admin' | 'staff' | 'agent' | 'guide'
   };
 }
 

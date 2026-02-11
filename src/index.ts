@@ -7,6 +7,8 @@ import tourRoutes from './routes/tours.js';
 import bookingRoutes from './routes/bookings.js';
 import reportRoutes from './routes/reports.js';
 import dashboardRoutes from './routes/dashboard.js';
+import guideRoutes from './routes/guides.js';
+import tourAssignmentRoutes from './routes/tourAssignments.js';
 
 // Load environment variables
 dotenv.config();
@@ -31,6 +33,8 @@ app.get('/', (req: Request, res: Response) => {
       bookings: '/api/bookings',
       reports: '/api/reports',
       dashboard: '/api/dashboard',
+      guides: '/api/guides',
+      tourAssignments: '/api/tour-assignments',
     },
   });
 });
@@ -59,6 +63,8 @@ app.use('/api/tours', tourRoutes);
 app.use('/api/bookings', bookingRoutes);
 app.use('/api/reports', reportRoutes);
 app.use('/api/dashboard', dashboardRoutes);
+app.use('/api/guides', guideRoutes);
+app.use('/api/tour-assignments', tourAssignmentRoutes);
 
 // Start server
 const PORT = process.env.PORT || 3000;
@@ -90,7 +96,28 @@ const server = app.listen(PORT, () => {
   console.log(`   - GET    /api/reports/demographics?year=2026&month=3`);
   console.log(`   - GET    /api/reports/export-csv?reportType=bookings&year=2026&month=3`);
   console.log(`\n   DASHBOARD:`);
-  console.log(`   - GET    /api/dashboard\n`);
+  console.log(`   - GET    /api/dashboard`);
+  console.log(`\n   GUIDES:`);
+  console.log(`   - POST   /api/guides/register`);
+  console.log(`   - POST   /api/guides/login`);
+  console.log(`   - POST   /api/guides/refresh`);
+  console.log(`   - GET    /api/guides/profile`);
+  console.log(`   - PUT    /api/guides/profile`);
+  console.log(`   - POST   /api/guides/license-photo`);
+  console.log(`   - GET    /api/guides`);
+  console.log(`   - GET    /api/guides/:id`);
+  console.log(`   - GET    /api/guides/:id/availability`);
+  console.log(`   - POST   /api/guides/itineraries`);
+  console.log(`   - GET    /api/guides/itineraries`);
+  console.log(`   - PUT    /api/guides/itineraries/:id`);
+  console.log(`   - DELETE /api/guides/itineraries/:id`);
+  console.log(`\n   TOUR ASSIGNMENTS:`);
+  console.log(`   - POST   /api/tour-assignments`);
+  console.log(`   - GET    /api/tour-assignments`);
+  console.log(`   - PUT    /api/tour-assignments/:id/accept`);
+  console.log(`   - PUT    /api/tour-assignments/:id/decline`);
+  console.log(`   - PUT    /api/tour-assignments/:id/complete`);
+  console.log(`   - DELETE /api/tour-assignments/:id\n`);
 });
 
 // Graceful shutdown

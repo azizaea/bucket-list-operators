@@ -1,4 +1,6 @@
 import { Router } from 'express';
+import multer from 'multer';
+import path from 'path';
 import {
   registerGuide,
   loginGuide,
@@ -6,6 +8,7 @@ import {
   getGuideProfile,
   updateGuideProfile,
   uploadLicensePhoto,
+  uploadProfilePicture,
   getGuideById,
   listGuides,
   getGuideAvailability,
@@ -53,5 +56,17 @@ router.get(
   requireRole('admin', 'staff', 'agent'),
   getGuideAvailability
 );
+
+// Profile picture upload config
+const storage = multer.diskStorage({
+  destination: 'uploads/profile-pictures/',
+  filename: (_req, file, cb) => {
+    const uniqueName = Date.now() + '-' + Math.round(Math.random() * 1e9) + path.extname(file.originalname);
+    cb(null, uniqueName);
+  },
+});
+const upload = multer({ storage, limits: { fileSize: 5 * 1024 * 1024 } });
+
+router.post('/profile-picture', authMiddleware, requireRole('guide'), upload.single('profilePicture'), uploadProfilePicture);
 
 export default router;

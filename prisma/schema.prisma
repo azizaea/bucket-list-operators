@@ -232,6 +232,7 @@ model Guide {
   email           String
   licenseNumber   String   @map("license_number")
   licensePhotoUrl String?  @map("license_photo_url")
+  profilePictureUrl String?  @map("profile_picture_url")
   licenseStatus   GuideLicenseStatus @default(NONE) @map("license_status")
   languages       String[] @default([])
   specialties     String[] @default([])

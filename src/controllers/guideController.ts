@@ -683,3 +683,39 @@ export async function deleteItinerary(req: AuthRequest, res: Response): Promise<
     res.status(500).json({ success: false, error: 'Failed to delete itinerary' });
   }
 }
+
+/**
+ * POST /api/guides/profile-picture - Upload profile picture
+ */
+export async function uploadProfilePicture(req: AuthRequest, res: Response): Promise<void> {
+  try {
+    const guideId = req.user?.guideId;
+    if (!guideId) {
+      res.status(401).json({ success: false, error: 'Not authenticated as guide' });
+      return;
+    }
+
+    if (!req.file) {
+      res.status(400).json({ success: false, error: 'No file uploaded' });
+      return;
+    }
+
+    const profilePictureUrl = `/uploads/profile-pictures/${req.file.filename}`;
+
+    const guide = await prisma.guide.update({
+      where: { id: guideId },
+      data: { profilePictureUrl },
+      select: {
+        id: true, fullName: true, email: true, phone: true,
+        licenseNumber: true, licenseStatus: true, location: true,
+        profilePictureUrl: true, bio: true, languages: true,
+        specialties: true, rating: true, hourlyRate: true,
+      },
+    });
+
+    res.json({ success: true, data: { guide } });
+  } catch (error) {
+    console.error('Upload profile picture error:', error);
+    res.status(500).json({ success: false, error: 'Failed to upload profile picture' });
+  }
+}

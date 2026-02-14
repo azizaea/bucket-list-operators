@@ -719,3 +719,94 @@ export async function uploadProfilePicture(req: AuthRequest, res: Response): Pro
     res.status(500).json({ success: false, error: 'Failed to upload profile picture' });
   }
 }
+
+/**
+ * POST /api/guides/forgot-password - Send password reset code via email
+ */
+export async function forgotPassword(req: AuthRequest, res: Response): Promise<void> {
+  try {
+    const { email } = req.body;
+    if (!email) {
+      res.status(400).json({ success: false, error: 'Email is required' });
+      return;
+    }
+
+    const user = await prisma.user.findUnique({ where: { email } });
+    // Always return success to prevent email enumeration
+    if (!user) {
+      res.json({ success: true, message: 'If an account exists, a reset code has been sent' });
+      return;
+    }
+
+    // Generate 6-digit code
+    const resetCode = Math.floor(100000 + Math.random() * 900000).toString();
+    const resetExpiry = new Date(Date.now() + 15 * 60 * 1000); // 15 minutes
+
+    await prisma.user.update({
+      where: { email },
+      data: { resetCode, resetCodeExpiry: resetExpiry },
+    });
+
+    // Send email via Resend
+    const { Resend } = await import('resend');
+    const resend = new Resend(process.env.RESEND_API_KEY);
+    await resend.emails.send({
+      from: 'Bucket List Guides <noreply@bucketlist.sa>',
+      to: email,
+      subject: 'Password Reset Code',
+      html: `
+        <div style="font-family: Arial, sans-serif; max-width: 500px; margin: 0 auto; padding: 20px;">
+          <h2 style="color: #1a1a1a;">Reset Your Password</h2>
+          <p>Your password reset code is:</p>
+          <div style="background: #f5f5f5; padding: 20px; text-align: center; border-radius: 8px; margin: 20px 0;">
+            <span style="font-size: 32px; font-weight: bold; letter-spacing: 8px; color: #1a1a1a;">${resetCode}</span>
+          </div>
+          <p style="color: #666;">This code expires in 15 minutes.</p>
+          <p style="color: #666;">If you didn't request this, please ignore this email.</p>
+          <hr style="border: none; border-top: 1px solid #eee; margin: 20px 0;">
+          <p style="color: #999; font-size: 12px;">The Bucket List Company</p>
+        </div>
+      `,
+    });
+
+    res.json({ success: true, message: 'If an account exists, a reset code has been sent' });
+  } catch (error) {
+    console.error('Forgot password error:', error);
+    res.status(500).json({ success: false, error: 'Failed to process request' });
+  }
+}
+
+/**
+ * POST /api/guides/reset-password - Reset password with code
+ */
+export async function resetPassword(req: AuthRequest, res: Response): Promise<void> {
+  try {
+    const { email, code, newPassword } = req.body;
+    if (!email || !code || !newPassword) {
+      res.status(400).json({ success: false, error: 'Email, code, and new password are required' });
+      return;
+    }
+
+    if (newPassword.length < 8) {
+      res.status(400).json({ success: false, error: 'Password must be at least 8 characters' });
+      return;
+    }
+
+    const user = await prisma.user.findUnique({ where: { email } });
+    if (!user || user.resetCode !== code || !user.resetCodeExpiry || user.resetCodeExpiry < new Date()) {
+      res.status(400).json({ success: false, error: 'Invalid or expired reset code' });
+      return;
+    }
+
+    const hashedPassword = await hashPassword(newPassword);
+    await prisma.user.update({
+      where: { email },
+      data: { passwordHash: hashedPassword, resetCode: null, resetCodeExpiry: null },
+    });
+
+    res.json({ success: true, message: 'Password reset successfully' });
+  } catch (error) {
+    console.error('Reset password error:', error);
+    res.status(500).json({ success: false, error: 'Failed to reset password' });
+  }
+}

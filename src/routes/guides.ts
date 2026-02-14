@@ -9,6 +9,8 @@ import {
   updateGuideProfile,
   uploadLicensePhoto,
   uploadProfilePicture,
+  forgotPassword,
+  resetPassword,
   getGuideById,
   listGuides,
   getGuideAvailability,
@@ -24,6 +26,8 @@ const router = Router();
 // ============ PUBLIC (no auth) ============
 router.post('/register', registerGuide);
 router.post('/login', loginGuide);
+router.post('/forgot-password', forgotPassword);
+router.post('/reset-password', resetPassword);
 router.post('/refresh', refreshGuideToken);
 
 // ============ GUIDE PROTECTED (role: guide) ============

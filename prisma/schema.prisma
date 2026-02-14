@@ -15,6 +15,8 @@ model User {
   id           String   @id @default(uuid())
   email        String   @unique
   passwordHash String   @map("password_hash")
+  resetCode       String?  @map("reset_code")
+  resetCodeExpiry DateTime? @map("reset_code_expiry")
   createdAt    DateTime @default(now()) @map("created_at")
 
   guides Guide[]
@@ -49,6 +51,8 @@ model OperatorUser {
   operatorId   String   @map("operator_id")
   email        String   @unique
   passwordHash String   @map("password_hash")
+  resetCode       String?  @map("reset_code")
+  resetCodeExpiry DateTime? @map("reset_code_expiry")
   role         String   // admin, staff, agent
   isActive     Boolean  @default(true) @map("is_active")
   createdAt    DateTime @default(now()) @map("created_at")

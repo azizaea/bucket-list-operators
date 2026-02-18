@@ -5,9 +5,6 @@
 
 */
 -- AlterTable
-ALTER TABLE "bookings" ADD COLUMN     "booking_notes" TEXT;
-
--- AlterTable
 ALTER TABLE "guide_itineraries" ADD COLUMN     "currency" TEXT DEFAULT 'SAR',
 ADD COLUMN     "is_published" BOOLEAN NOT NULL DEFAULT false,
 ADD COLUMN     "max_guests" INTEGER,
@@ -15,14 +12,6 @@ ADD COLUMN     "price" DECIMAL(10,2);
 
 -- AlterTable
 ALTER TABLE "guides" ADD COLUMN     "store_slug" TEXT;
-
--- AlterTable
-ALTER TABLE "tours" ADD COLUMN     "exclusions" TEXT[] DEFAULT ARRAY[]::TEXT[],
-ADD COLUMN     "highlights" TEXT[] DEFAULT ARRAY[]::TEXT[],
-ADD COLUMN     "important_notes" TEXT,
-ADD COLUMN     "inclusions" TEXT[] DEFAULT ARRAY[]::TEXT[],
-ADD COLUMN     "meeting_point" TEXT,
-ADD COLUMN     "meeting_point_instructions" TEXT;
 
 -- CreateTable
 CREATE TABLE "store_settings" (

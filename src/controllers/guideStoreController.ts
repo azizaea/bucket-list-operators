@@ -1,0 +1,155 @@
+import { Request, Response } from 'express';
+import { PrismaClient } from '@prisma/client';
+import type { AuthRequest } from '../middleware/auth.js';
+
+const prisma = new PrismaClient();
+
+/**
+ * GET /api/guide-stores/public/:slug - PUBLIC, no auth required
+ * Get store by slug for public storefront
+ */
+export async function getStoreBySlug(req: Request, res: Response): Promise<void> {
+  try {
+    const slug = req.params.slug as string;
+
+    const guide = await prisma.guide.findFirst({
+      where: { storeSlug: slug },
+      include: { storeSettings: true },
+    });
+
+    if (!guide) {
+      res.status(404).json({ success: false, error: 'Store not found' });
+      return;
+    }
+
+    res.json({
+      success: true,
+      data: {
+        guide: {
+          id: guide.id,
+          fullName: guide.fullName,
+          storeSlug: guide.storeSlug,
+        },
+        store: guide.storeSettings,
+      },
+    });
+  } catch (error) {
+    console.error('Get store by slug error:', error);
+    res.status(500).json({ success: false, error: 'Failed to get store' });
+  }
+}
+
+/**
+ * GET /api/guide-stores/settings - AUTHENTICATED (guide only)
+ * Get the authenticated guide's StoreSettings
+ */
+export async function getMyStore(req: AuthRequest, res: Response): Promise<void> {
+  try {
+    const guideId = req.user?.guideId;
+    if (!guideId) {
+      res.status(401).json({ success: false, error: 'Not authenticated as guide' });
+      return;
+    }
+
+    const store = await prisma.storeSettings.findUnique({
+      where: { guideId },
+    });
+
+    res.json({
+      success: true,
+      data: { store },
+    });
+  } catch (error) {
+    console.error('Get my store error:', error);
+    res.status(500).json({ success: false, error: 'Failed to get store settings' });
+  }
+}
+
+/**
+ * PUT /api/guide-stores/settings - AUTHENTICATED (guide only)
+ * Upsert StoreSettings for the authenticated guide
+ */
+export async function upsertStoreSettings(req: AuthRequest, res: Response): Promise<void> {
+  try {
+    const guideId = req.user?.guideId;
+    if (!guideId) {
+      res.status(401).json({ success: false, error: 'Not authenticated as guide' });
+      return;
+    }
+
+    const {
+      storeName,
+      logoUrl,
+      primaryColor,
+      heroImageUrl,
+      aboutText,
+      tourSelection,
+    } = req.body;
+
+    const store = await prisma.storeSettings.upsert({
+      where: { guideId },
+      create: {
+        guideId,
+        storeName: storeName ?? null,
+        logoUrl: logoUrl ?? null,
+        primaryColor: primaryColor ?? null,
+        heroImageUrl: heroImageUrl ?? null,
+        aboutText: aboutText ?? null,
+        tourSelection: tourSelection ?? 'ALL',
+      },
+      update: {
+        ...(storeName !== undefined && { storeName }),
+        ...(logoUrl !== undefined && { logoUrl }),
+        ...(primaryColor !== undefined && { primaryColor }),
+        ...(heroImageUrl !== undefined && { heroImageUrl }),
+        ...(aboutText !== undefined && { aboutText }),
+        ...(tourSelection !== undefined && { tourSelection }),
+      },
+    });
+
+    res.json({
+      success: true,
+      data: { store },
+    });
+  } catch (error) {
+    console.error('Upsert store settings error:', error);
+    res.status(500).json({ success: false, error: 'Failed to update store settings' });
+  }
+}
+
+/**
+ * POST /api/guide-stores/publish - AUTHENTICATED (guide only)
+ * Toggle publishedAt: set to now if null, or null if already set
+ */
+export async function publishStore(req: AuthRequest, res: Response): Promise<void> {
+  try {
+    const guideId = req.user?.guideId;
+    if (!guideId) {
+      res.status(401).json({ success: false, error: 'Not authenticated as guide' });
+      return;
+    }
+
+    const existing = await prisma.storeSettings.findUnique({
+      where: { guideId },
+    });
+
+    const newPublishedAt = existing?.publishedAt ? null : new Date();
+
+    const store = await prisma.storeSettings.upsert({
+      where: { guideId },
+      create: {
+        guideId,
+        publishedAt: newPublishedAt,
+      },
+      update: { publishedAt: newPublishedAt },
+    });
+
+    res.json({
+      success: true,
+      data: { store },
+    });
+  } catch (error) {
+    console.error('Publish store error:', error);
+    res.status(500).json({ success: false, error: 'Failed to publish store' });
+  }
+}

@@ -246,13 +246,18 @@ model Guide {
   hourlyRate      Decimal? @map("hourly_rate") @db.Decimal(10, 2)
   availability    Json?    // calendar data
   isActive        Boolean  @default(true) @map("is_active")
+  storeSlug       String?  @unique @map("store_slug")
   createdAt       DateTime @default(now()) @map("created_at")
   updatedAt       DateTime @updatedAt @map("updated_at")
 
-  user              User                 @relation(fields: [userId], references: [id], onDelete: Cascade)
-  operator          Operator?            @relation(fields: [operatorId], references: [id], onDelete: SetNull)
+  user                User                 @relation(fields: [userId], references: [id], onDelete: Cascade)
+  operator            Operator?            @relation(fields: [operatorId], references: [id], onDelete: SetNull)
   tourGuideAssignments TourGuideAssignment[]
-  itineraries       GuideItinerary[]
+  itineraries         GuideItinerary[]
+  storeSettings       StoreSettings?
+  tenantDomains       TenantDomain[]
+  guideAvailabilities GuideAvailability[]
+  guideBookings       GuideBooking[]
 
   @@map("guides")
 }
@@ -295,10 +300,92 @@ model GuideItinerary {
   title             String
   destinations      Json     // array of stops
   estimatedDuration Int      @map("estimated_duration") // minutes
+  price             Decimal? @db.Decimal(10, 2)
+  currency          String?  @default("SAR")
+  maxGuests         Int?     @map("max_guests")
+  isPublished       Boolean  @default(false) @map("is_published")
   createdAt         DateTime @default(now()) @map("created_at")
   updatedAt         DateTime @updatedAt @map("updated_at")
 
-  guide Guide @relation(fields: [guideId], references: [id], onDelete: Cascade)
+  guide               Guide               @relation(fields: [guideId], references: [id], onDelete: Cascade)
+  guideAvailabilities  GuideAvailability[]
+  guideBookings       GuideBooking[]
 
   @@map("guide_itineraries")
+}
+
+model StoreSettings {
+  id            String    @id @default(uuid())
+  guideId       String    @unique @map("guide_id")
+  storeName     String?   @map("store_name")
+  logoUrl       String?   @map("logo_url")
+  primaryColor  String?   @default("#006C35") @map("primary_color")
+  heroImageUrl  String?   @map("hero_image_url")
+  aboutText     String?   @map("about_text")
+  tourSelection String   @default("ALL") @map("tour_selection")
+  publishedAt   DateTime? @map("published_at")
+  createdAt     DateTime  @default(now()) @map("created_at")
+  updatedAt     DateTime  @updatedAt @map("updated_at")
+
+  guide Guide @relation(fields: [guideId], references: [id], onDelete: Cascade)
+
+  @@map("store_settings")
+}
+
+model TenantDomain {
+  id                String    @id @default(uuid())
+  guideId           String    @map("guide_id")
+  domain            String    @unique
+  status            String    @default("pending")
+  sslStatus         String    @default("pending") @map("ssl_status")
+  verificationToken String?   @map("verification_token")
+  verifiedAt        DateTime? @map("verified_at")
+  createdAt         DateTime  @default(now()) @map("created_at")
+  updatedAt         DateTime  @updatedAt @map("updated_at")
+
+  guide Guide @relation(fields: [guideId], references: [id], onDelete: Cascade)
+
+  @@map("tenant_domains")
+}
+
+model GuideAvailability {
+  id           String   @id @default(uuid())
+  itineraryId  String   @map("itinerary_id")
+  guideId      String   @map("guide_id")
+  date         DateTime @db.Date
+  maxGuests    Int      @map("max_guests")
+  bookedCount  Int      @default(0) @map("booked_count")
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+
+  itinerary GuideItinerary @relation(fields: [itineraryId], references: [id], onDelete: Cascade)
+  guide     Guide          @relation(fields: [guideId], references: [id], onDelete: Cascade)
+  bookings  GuideBooking[]
+
+  @@unique([itineraryId, date])
+  @@map("guide_availability")
+}
+
+model GuideBooking {
+  id               String    @id @default(uuid())
+  itineraryId      String    @map("itinerary_id")
+  guideId          String    @map("guide_id")
+  availabilityId   String    @map("availability_id")
+  customerEmail    String    @map("customer_email")
+  customerName     String    @map("customer_name")
+  customerPhone    String?   @map("customer_phone")
+  guestCount       Int       @map("guest_count")
+  totalAmount      Decimal   @db.Decimal(10, 2) @map("total_amount")
+  currency         String    @default("SAR")
+  paymentStatus   String    @default("pending") @map("payment_status")
+  moyasarPaymentId String?   @map("moyasar_payment_id")
+  confirmationCode String    @unique @map("confirmation_code")
+  createdAt        DateTime  @default(now()) @map("created_at")
+  updatedAt        DateTime  @updatedAt @map("updated_at")
+
+  itinerary    GuideItinerary    @relation(fields: [itineraryId], references: [id])
+  guide        Guide             @relation(fields: [guideId], references: [id])
+  availability GuideAvailability @relation(fields: [availabilityId], references: [id])
+
+  @@map("guide_bookings")
 }

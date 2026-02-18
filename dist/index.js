@@ -8,7 +8,11 @@ import bookingRoutes from './routes/bookings.js';
 import reportRoutes from './routes/reports.js';
 import dashboardRoutes from './routes/dashboard.js';
 import guideRoutes from './routes/guides.js';
+import guideStoreRoutes from './routes/guideStores.js';
 import tourAssignmentRoutes from './routes/tourAssignments.js';
+// Debug: verify route imports resolve to actual Router instances
+console.log('guideRoutes type:', typeof guideRoutes, '| has stack:', !!guideRoutes?.stack);
+console.log('tourAssignmentRoutes type:', typeof tourAssignmentRoutes, '| has stack:', !!tourAssignmentRoutes?.stack);
 // Load environment variables
 dotenv.config();
 // Initialize Express app
@@ -17,6 +21,7 @@ const prisma = new PrismaClient();
 // Middleware
 app.use(cors());
 app.use(express.json());
+app.use('/uploads', express.static('uploads'));
 // API Info Route
 app.get('/', (req, res) => {
     res.json({
@@ -30,6 +35,7 @@ app.get('/', (req, res) => {
             reports: '/api/reports',
             dashboard: '/api/dashboard',
             guides: '/api/guides',
+            guideStores: '/api/guide-stores',
             tourAssignments: '/api/tour-assignments',
         },
     });
@@ -59,6 +65,7 @@ app.use('/api/bookings', bookingRoutes);
 app.use('/api/reports', reportRoutes);
 app.use('/api/dashboard', dashboardRoutes);
 app.use('/api/guides', guideRoutes);
+app.use('/api/guide-stores', guideStoreRoutes);
 app.use('/api/tour-assignments', tourAssignmentRoutes);
 // Start server
 const PORT = process.env.PORT || 3000;
@@ -105,6 +112,11 @@ const server = app.listen(PORT, () => {
     console.log(`   - GET    /api/guides/itineraries`);
     console.log(`   - PUT    /api/guides/itineraries/:id`);
     console.log(`   - DELETE /api/guides/itineraries/:id`);
+    console.log(`\n   GUIDE STORES:`);
+    console.log(`   - GET    /api/guide-stores/public/:slug`);
+    console.log(`   - GET    /api/guide-stores/settings`);
+    console.log(`   - PUT    /api/guide-stores/settings`);
+    console.log(`   - POST   /api/guide-stores/publish`);
     console.log(`\n   TOUR ASSIGNMENTS:`);
     console.log(`   - POST   /api/tour-assignments`);
     console.log(`   - GET    /api/tour-assignments`);

@@ -254,7 +254,7 @@ export async function updateGuideProfile(req, res) {
             res.status(401).json({ success: false, error: 'Not authenticated as guide' });
             return;
         }
-        const { fullName, phone, languages, specialties, location, bio, hourlyRate, availability, isActive, } = req.body;
+        const { fullName, phone, languages, specialties, location, bio, hourlyRate, availability, isActive, storeSlug, } = req.body;
         const updateData = {};
         if (fullName !== undefined)
             updateData.fullName = fullName;
@@ -274,6 +274,13 @@ export async function updateGuideProfile(req, res) {
             updateData.availability = availability;
         if (isActive !== undefined)
             updateData.isActive = isActive;
+        if (storeSlug !== undefined) {
+            if (typeof storeSlug !== 'string') {
+                res.status(400).json({ success: false, error: 'storeSlug must be a string' });
+                return;
+            }
+            updateData.storeSlug = storeSlug.trim() || null;
+        }
         const guide = await prisma.guide.update({
             where: { id: guideId },
             data: updateData,
@@ -477,7 +484,7 @@ export async function createItinerary(req, res) {
             res.status(401).json({ success: false, error: 'Not authenticated as guide' });
             return;
         }
-        const { title, destinations, estimatedDuration } = req.body;
+        const { title, destinations, estimatedDuration, price, currency, maxGuests, isPublished, coverImage, itineraryDays, includes, excludes } = req.body;
         if (!title || !destinations || estimatedDuration == null) {
             res.status(400).json({
                 success: false,
@@ -491,6 +498,14 @@ export async function createItinerary(req, res) {
                 title,
                 destinations,
                 estimatedDuration: parseInt(String(estimatedDuration), 10),
+                price: price != null ? price : undefined,
+                currency: currency ?? 'SAR',
+                maxGuests: maxGuests != null ? parseInt(String(maxGuests), 10) : undefined,
+                isPublished: isPublished ?? false,
+                coverImage: coverImage ?? undefined,
+                itineraryDays: itineraryDays ?? undefined,
+                includes: Array.isArray(includes) ? includes : [],
+                excludes: Array.isArray(excludes) ? excludes : [],
             },
         });
         res.status(201).json({
@@ -545,7 +560,7 @@ export async function updateItinerary(req, res) {
             res.status(404).json({ success: false, error: 'Itinerary not found' });
             return;
         }
-        const { title, destinations, estimatedDuration } = req.body;
+        const { title, destinations, estimatedDuration, price, currency, maxGuests, isPublished, coverImage, itineraryDays, includes, excludes } = req.body;
         const updateData = {};
         if (title !== undefined)
             updateData.title = title;
@@ -553,6 +568,22 @@ export async function updateItinerary(req, res) {
             updateData.destinations = destinations;
         if (estimatedDuration !== undefined)
             updateData.estimatedDuration = parseInt(String(estimatedDuration), 10);
+        if (price !== undefined)
+            updateData.price = price;
+        if (currency !== undefined)
+            updateData.currency = currency;
+        if (maxGuests !== undefined)
+            updateData.maxGuests = parseInt(String(maxGuests), 10);
+        if (isPublished !== undefined)
+            updateData.isPublished = isPublished;
+        if (coverImage !== undefined)
+            updateData.coverImage = coverImage;
+        if (itineraryDays !== undefined)
+            updateData.itineraryDays = itineraryDays;
+        if (includes !== undefined)
+            updateData.includes = Array.isArray(includes) ? includes : [];
+        if (excludes !== undefined)
+            updateData.excludes = Array.isArray(excludes) ? excludes : [];
         const itinerary = await prisma.guideItinerary.update({
             where: { id: itineraryId },
             data: updateData,
@@ -596,5 +627,119 @@ export async function deleteItinerary(req, res) {
     catch (error) {
         console.error('Delete itinerary error:', error);
         res.status(500).json({ success: false, error: 'Failed to delete itinerary' });
+    }
+}
+/**
+ * POST /api/guides/profile-picture - Upload profile picture
+ */
+export async function uploadProfilePicture(req, res) {
+    try {
+        const guideId = req.user?.guideId;
+        if (!guideId) {
+            res.status(401).json({ success: false, error: 'Not authenticated as guide' });
+            return;
+        }
+        if (!req.file) {
+            res.status(400).json({ success: false, error: 'No file uploaded' });
+            return;
+        }
+        const profilePictureUrl = `/uploads/profile-pictures/${req.file.filename}`;
+        const guide = await prisma.guide.update({
+            where: { id: guideId },
+            data: { profilePictureUrl },
+            select: {
+                id: true, fullName: true, email: true, phone: true,
+                licenseNumber: true, licenseStatus: true, location: true,
+                profilePictureUrl: true, bio: true, languages: true,
+                specialties: true, rating: true, hourlyRate: true,
+            },
+        });
+        res.json({ success: true, data: { guide } });
+    }
+    catch (error) {
+        console.error('Upload profile picture error:', error);
+        res.status(500).json({ success: false, error: 'Failed to upload profile picture' });
+    }
+}
+/**
+ * POST /api/guides/forgot-password - Send password reset code via email
+ */
+export async function forgotPassword(req, res) {
+    try {
+        const { email } = req.body;
+        if (!email) {
+            res.status(400).json({ success: false, error: 'Email is required' });
+            return;
+        }
+        const user = await prisma.user.findUnique({ where: { email } });
+        // Always return success to prevent email enumeration
+        if (!user) {
+            res.json({ success: true, message: 'If an account exists, a reset code has been sent' });
+            return;
+        }
+        // Generate 6-digit code
+        const resetCode = Math.floor(100000 + Math.random() * 900000).toString();
+        const resetExpiry = new Date(Date.now() + 15 * 60 * 1000); // 15 minutes
+        await prisma.user.update({
+            where: { email },
+            data: { resetCode, resetCodeExpiry: resetExpiry },
+        });
+        // Send email via Resend
+        const { Resend } = await import('resend');
+        const resend = new Resend(process.env.RESEND_API_KEY);
+        await resend.emails.send({
+            from: 'Bucket List Guides <noreply@bucketlist.sa>',
+            to: email,
+            subject: 'Password Reset Code',
+            html: `
+        <div style="font-family: Arial, sans-serif; max-width: 500px; margin: 0 auto; padding: 20px;">
+          <h2 style="color: #1a1a1a;">Reset Your Password</h2>
+          <p>Your password reset code is:</p>
+          <div style="background: #f5f5f5; padding: 20px; text-align: center; border-radius: 8px; margin: 20px 0;">
+            <span style="font-size: 32px; font-weight: bold; letter-spacing: 8px; color: #1a1a1a;">${resetCode}</span>
+          </div>
+          <p style="color: #666;">This code expires in 15 minutes.</p>
+          <p style="color: #666;">If you didn't request this, please ignore this email.</p>
+          <hr style="border: none; border-top: 1px solid #eee; margin: 20px 0;">
+          <p style="color: #999; font-size: 12px;">The Bucket List Company</p>
+        </div>
+      `,
+        });
+        res.json({ success: true, message: 'If an account exists, a reset code has been sent' });
+    }
+    catch (error) {
+        console.error('Forgot password error:', error);
+        res.status(500).json({ success: false, error: 'Failed to process request' });
+    }
+}
+/**
+ * POST /api/guides/reset-password - Reset password with code
+ */
+export async function resetPassword(req, res) {
+    try {
+        const { email, code, newPassword } = req.body;
+        if (!email || !code || !newPassword) {
+            res.status(400).json({ success: false, error: 'Email, code, and new password are required' });
+            return;
+        }
+        if (newPassword.length < 8) {
+            res.status(400).json({ success: false, error: 'Password must be at least 8 characters' });
+            return;
+        }
+        const user = await prisma.user.findUnique({ where: { email } });
+        if (!user || user.resetCode !== code || !user.resetCodeExpiry || user.resetCodeExpiry < new Date()) {
+            res.status(400).json({ success: false, error: 'Invalid or expired reset code' });
+            return;
+        }
+        const hashedPassword = await hashPassword(newPassword);
+        await prisma.user.update({
+            where: { email },
+            data: { passwordHash: hashedPassword, resetCode: null, resetCodeExpiry: null },
+        });
+        res.json({ success: true, message: 'Password reset successfully' });
+    }
+    catch (error) {
+        console.error('Reset password error:', error);
+        res.status(500).json({ success: false, error: 'Failed to reset password' });
     }
 }

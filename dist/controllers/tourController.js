@@ -75,10 +75,8 @@ export async function getTours(req, res) {
         const skip = (page - 1) * limit;
         // Filters
         const isActive = req.query.isActive;
-        const categoryParam = req.query.category;
-        const searchParam = req.query.search;
-        const category = Array.isArray(categoryParam) ? categoryParam[0] : categoryParam;
-        const search = Array.isArray(searchParam) ? searchParam[0] : searchParam;
+        const category = req.query.category;
+        const search = req.query.search;
         // Build where clause (Prisma uses camelCase)
         const where = {
             operatorId,
@@ -86,10 +84,10 @@ export async function getTours(req, res) {
         if (isActive !== undefined) {
             where.isActive = isActive === 'true';
         }
-        if (category && typeof category === 'string') {
+        if (category) {
             where.category = category;
         }
-        if (search && typeof search === 'string') {
+        if (search) {
             where.OR = [
                 { titleEn: { contains: search, mode: 'insensitive' } },
                 { titleAr: { contains: search, mode: 'insensitive' } },
@@ -135,7 +133,7 @@ export async function getTours(req, res) {
 export async function getTour(req, res) {
     try {
         const operatorId = req.user?.operatorId;
-        const tourId = String(req.params.id || '');
+        const tourId = req.params.id;
         if (!operatorId) {
             res.status(401).json({
                 success: false,
@@ -175,7 +173,7 @@ export async function getTour(req, res) {
 export async function updateTour(req, res) {
     try {
         const operatorId = req.user?.operatorId;
-        const tourId = String(req.params.id || '');
+        const tourId = req.params.id;
         if (!operatorId) {
             res.status(401).json({
                 success: false,
@@ -253,7 +251,7 @@ export async function updateTour(req, res) {
 export async function deleteTour(req, res) {
     try {
         const operatorId = req.user?.operatorId;
-        const tourId = String(req.params.id || '');
+        const tourId = req.params.id;
         if (!operatorId) {
             res.status(401).json({
                 success: false,

@@ -258,6 +258,7 @@ model Guide {
   tenantDomains       TenantDomain[]
   guideAvailabilities GuideAvailability[]
   guideBookings       GuideBooking[]
+  guideStoreBookings  GuideStoreBooking[]
 
   @@map("guides")
 }
@@ -314,8 +315,36 @@ model GuideItinerary {
   guide               Guide               @relation(fields: [guideId], references: [id], onDelete: Cascade)
   guideAvailabilities  GuideAvailability[]
   guideBookings       GuideBooking[]
+  guideStoreBookings  GuideStoreBooking[]
 
   @@map("guide_itineraries")
+}
+
+model GuideStoreBooking {
+  id                    String   @id @default(uuid())
+  guideId               String   @map("guide_id")
+  tourId                String   @map("tour_id")
+  status                String   @default("pending")
+  tourDate              DateTime @map("tour_date")
+  guests                Int
+  totalPrice            Decimal  @map("total_price") @db.Decimal(10, 2)
+  fullName              String   @map("full_name")
+  email                 String
+  phone                 String
+  nationality           String?  @map("nationality")
+  passportNumber        String?  @map("passport_number")
+  countryOfResidence    String?  @map("country_of_residence")
+  emergencyContactName  String?  @map("emergency_contact_name")
+  emergencyContactPhone String?  @map("emergency_contact_phone")
+  foodAllergies         String?  @map("food_allergies")
+  medicalConditions     String?  @map("medical_conditions")
+  createdAt             DateTime @default(now()) @map("created_at")
+  updatedAt             DateTime @updatedAt @map("updated_at")
+
+  guide Guide          @relation(fields: [guideId], references: [id])
+  tour  GuideItinerary @relation(fields: [tourId], references: [id])
+
+  @@map("guide_store_bookings")
 }
 
 model StoreSettings {

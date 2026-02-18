@@ -6,6 +6,7 @@ import {
   upsertStoreSettings,
   publishStore,
 } from '../controllers/guideStoreController.js';
+import { createBooking } from '../controllers/guideStoreBookingController.js';
 import { authMiddleware, requireRole } from '../middleware/auth.js';
 
 const router = Router();
@@ -13,6 +14,7 @@ const router = Router();
 // Public routes (no auth)
 router.get('/public/:slug', getStoreBySlug);
 router.get('/public/:slug/tours', getStoreToursBySlug);
+router.post('/public/:slug/tours/:tourId/book', createBooking);
 
 // Guide-protected routes (auth + role: guide)
 router.get('/settings', authMiddleware, requireRole('guide'), getMyStore);

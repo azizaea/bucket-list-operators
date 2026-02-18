@@ -305,6 +305,7 @@ export async function updateGuideProfile(req: AuthRequest, res: Response): Promi
       hourlyRate,
       availability,
       isActive,
+      storeSlug,
     } = req.body;
 
     const updateData: Record<string, unknown> = {};
@@ -317,6 +318,13 @@ export async function updateGuideProfile(req: AuthRequest, res: Response): Promi
     if (hourlyRate !== undefined) updateData.hourlyRate = hourlyRate;
     if (availability !== undefined) updateData.availability = availability;
     if (isActive !== undefined) updateData.isActive = isActive;
+    if (storeSlug !== undefined) {
+      if (typeof storeSlug !== 'string') {
+        res.status(400).json({ success: false, error: 'storeSlug must be a string' });
+        return;
+      }
+      updateData.storeSlug = storeSlug.trim() || null;
+    }
 
     const guide = await prisma.guide.update({
       where: { id: guideId },

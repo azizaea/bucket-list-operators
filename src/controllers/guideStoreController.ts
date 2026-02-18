@@ -57,6 +57,10 @@ export async function getStoreTours(guideId: string) {
       currency: true,
       maxGuests: true,
       estimatedDuration: true,
+      coverImage: true,
+      itineraryDays: true,
+      includes: true,
+      excludes: true,
     },
   });
 
@@ -67,6 +71,10 @@ export async function getStoreTours(guideId: string) {
     currency: it.currency ?? null,
     maxGuests: it.maxGuests ?? null,
     duration: it.estimatedDuration ?? null,
+    coverImage: it.coverImage ?? null,
+    itineraryDays: it.itineraryDays ?? null,
+    includes: it.includes ?? [],
+    excludes: it.excludes ?? [],
   }));
 }
 

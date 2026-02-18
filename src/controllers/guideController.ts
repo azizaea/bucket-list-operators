@@ -558,7 +558,7 @@ export async function createItinerary(req: AuthRequest, res: Response): Promise<
       return;
     }
 
-    const { title, destinations, estimatedDuration, price, currency, maxGuests, isPublished } = req.body;
+    const { title, destinations, estimatedDuration, price, currency, maxGuests, isPublished, coverImage, itineraryDays, includes, excludes } = req.body;
 
     if (!title || !destinations || estimatedDuration == null) {
       res.status(400).json({
@@ -578,6 +578,10 @@ export async function createItinerary(req: AuthRequest, res: Response): Promise<
         currency: currency ?? 'SAR',
         maxGuests: maxGuests != null ? parseInt(String(maxGuests), 10) : undefined,
         isPublished: isPublished ?? false,
+        coverImage: coverImage ?? undefined,
+        itineraryDays: itineraryDays ?? undefined,
+        includes: Array.isArray(includes) ? includes : [],
+        excludes: Array.isArray(excludes) ? excludes : [],
       },
     });
 
@@ -639,7 +643,7 @@ export async function updateItinerary(req: AuthRequest, res: Response): Promise<
       return;
     }
 
-    const { title, destinations, estimatedDuration, price, currency, maxGuests, isPublished } = req.body;
+    const { title, destinations, estimatedDuration, price, currency, maxGuests, isPublished, coverImage, itineraryDays, includes, excludes } = req.body;
     const updateData: Record<string, unknown> = {};
     if (title !== undefined) updateData.title = title;
     if (destinations !== undefined) updateData.destinations = destinations;
@@ -648,6 +652,10 @@ export async function updateItinerary(req: AuthRequest, res: Response): Promise<
     if (currency !== undefined) updateData.currency = currency;
     if (maxGuests !== undefined) updateData.maxGuests = parseInt(String(maxGuests), 10);
     if (isPublished !== undefined) updateData.isPublished = isPublished;
+    if (coverImage !== undefined) updateData.coverImage = coverImage;
+    if (itineraryDays !== undefined) updateData.itineraryDays = itineraryDays;
+    if (includes !== undefined) updateData.includes = Array.isArray(includes) ? includes : [];
+    if (excludes !== undefined) updateData.excludes = Array.isArray(excludes) ? excludes : [];
 
     const itinerary = await prisma.guideItinerary.update({
       where: { id: itineraryId },

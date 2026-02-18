@@ -304,6 +304,10 @@ model GuideItinerary {
   currency          String?  @default("SAR")
   maxGuests         Int?     @map("max_guests")
   isPublished       Boolean  @default(false) @map("is_published")
+  coverImage        String?  @map("cover_image")
+  itineraryDays     Json?    @map("itinerary_days")
+  includes          String[] @default([])
+  excludes          String[] @default([])
   createdAt         DateTime @default(now()) @map("created_at")
   updatedAt         DateTime @updatedAt @map("updated_at")
 

@@ -558,7 +558,7 @@ export async function createItinerary(req: AuthRequest, res: Response): Promise<
       return;
     }
 
-    const { title, destinations, estimatedDuration } = req.body;
+    const { title, destinations, estimatedDuration, price, currency, maxGuests, isPublished } = req.body;
 
     if (!title || !destinations || estimatedDuration == null) {
       res.status(400).json({
@@ -574,6 +574,10 @@ export async function createItinerary(req: AuthRequest, res: Response): Promise<
         title,
         destinations,
         estimatedDuration: parseInt(String(estimatedDuration), 10),
+        price: price != null ? price : undefined,
+        currency: currency ?? 'SAR',
+        maxGuests: maxGuests != null ? parseInt(String(maxGuests), 10) : undefined,
+        isPublished: isPublished ?? false,
       },
     });
 
@@ -635,11 +639,15 @@ export async function updateItinerary(req: AuthRequest, res: Response): Promise<
       return;
     }
 
-    const { title, destinations, estimatedDuration } = req.body;
+    const { title, destinations, estimatedDuration, price, currency, maxGuests, isPublished } = req.body;
     const updateData: Record<string, unknown> = {};
     if (title !== undefined) updateData.title = title;
     if (destinations !== undefined) updateData.destinations = destinations;
     if (estimatedDuration !== undefined) updateData.estimatedDuration = parseInt(String(estimatedDuration), 10);
+    if (price !== undefined) updateData.price = price;
+    if (currency !== undefined) updateData.currency = currency;
+    if (maxGuests !== undefined) updateData.maxGuests = parseInt(String(maxGuests), 10);
+    if (isPublished !== undefined) updateData.isPublished = isPublished;
 
     const itinerary = await prisma.guideItinerary.update({
       where: { id: itineraryId },

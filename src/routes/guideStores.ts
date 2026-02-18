@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import {
   getStoreBySlug,
+  getStoreToursBySlug,
   getMyStore,
   upsertStoreSettings,
   publishStore,
@@ -9,8 +10,9 @@ import { authMiddleware, requireRole } from '../middleware/auth.js';
 
 const router = Router();
 
-// Public route (no auth)
+// Public routes (no auth)
 router.get('/public/:slug', getStoreBySlug);
+router.get('/public/:slug/tours', getStoreToursBySlug);
 
 // Guide-protected routes (auth + role: guide)
 router.get('/settings', authMiddleware, requireRole('guide'), getMyStore);

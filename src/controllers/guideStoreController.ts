@@ -40,6 +40,67 @@ export async function getStoreBySlug(req: Request, res: Response): Promise<void>
 }
 
 /**
+ * Get published tours for a guide (by guideId)
+ * Used internally - e.g. for GET /public/:slug/tours
+ */
+export async function getStoreTours(guideId: string) {
+  const itineraries = await prisma.guideItinerary.findMany({
+    where: {
+      guideId,
+      isPublished: true,
+    },
+    orderBy: { createdAt: 'desc' },
+    select: {
+      id: true,
+      title: true,
+      price: true,
+      currency: true,
+      maxGuests: true,
+      estimatedDuration: true,
+    },
+  });
+
+  return itineraries.map((it) => ({
+    id: it.id,
+    title: it.title,
+    price: it.price != null ? Number(it.price) : null,
+    currency: it.currency ?? null,
+    maxGuests: it.maxGuests ?? null,
+    duration: it.estimatedDuration ?? null,
+  }));
+}
+
+/**
+ * GET /api/guide-stores/public/:slug/tours - PUBLIC, no auth required
+ * Get published tours for a store by slug
+ */
+export async function getStoreToursBySlug(req: Request, res: Response): Promise<void> {
+  try {
+    const slug = req.params.slug as string;
+
+    const guide = await prisma.guide.findFirst({
+      where: { storeSlug: slug },
+      select: { id: true },
+    });
+
+    if (!guide) {
+      res.status(404).json({ success: false, error: 'Store not found' });
+      return;
+    }
+
+    const tours = await getStoreTours(guide.id);
+
+    res.json({
+      success: true,
+      data: { tours },
+    });
+  } catch (error) {
+    console.error('Get store tours error:', error);
+    res.status(500).json({ success: false, error: 'Failed to get store tours' });
+  }
+}
+
+/**
  * GET /api/guide-stores/settings - AUTHENTICATED (guide only)
  * Get the authenticated guide's StoreSettings
  */

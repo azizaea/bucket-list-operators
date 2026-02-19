@@ -1,7 +1,10 @@
 import { Request, Response } from 'express';
 import { PrismaClient } from '@prisma/client';
 import { Decimal } from '@prisma/client/runtime/library';
-import { sendGuideStoreBookingNotification } from '../utils/smtpEmail.js';
+import {
+  sendGuideStoreBookingNotification,
+  sendTravelerBookingConfirmation,
+} from '../utils/smtpEmail.js';
 
 const prisma = new PrismaClient();
 
@@ -65,7 +68,7 @@ export async function createBooking(req: Request, res: Response): Promise<void> 
     // Find guide by store slug
     const guide = await prisma.guide.findFirst({
       where: { storeSlug: slug },
-      select: { id: true, email: true },
+      select: { id: true, email: true, fullName: true },
     });
     if (!guide) {
       res.status(404).json({ success: false, error: 'Store not found' });
@@ -118,7 +121,7 @@ export async function createBooking(req: Request, res: Response): Promise<void> 
       },
     });
 
-    // Send email notification to guide (non-blocking)
+    // Send emails non-blocking
     sendGuideStoreBookingNotification({
       guideEmail: guide.email,
       tourName: tour.title,
@@ -137,6 +140,17 @@ export async function createBooking(req: Request, res: Response): Promise<void> 
       emergencyContactName: booking.emergencyContactName,
       emergencyContactPhone: booking.emergencyContactPhone,
     }).catch((err) => console.error('Guide notification email failed:', err));
+
+    sendTravelerBookingConfirmation({
+      travelerEmail: booking.email,
+      travelerName: booking.fullName,
+      tourName: tour.title,
+      tourDate: parsedDate,
+      guests: guestCount,
+      totalPrice,
+      currency,
+      guideName: guide.fullName,
+    }).catch((err) => console.error('Traveler confirmation email failed:', err));
 
     res.status(201).json({
       success: true,

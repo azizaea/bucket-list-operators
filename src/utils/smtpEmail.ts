@@ -1,4 +1,7 @@
 import nodemailer from 'nodemailer';
+import { Resend } from 'resend';
+
+const resend = new Resend(process.env.RESEND_API_KEY);
 
 function getTransporter() {
   const host = process.env.SMTP_HOST;
@@ -129,6 +132,93 @@ export async function sendGuideStoreBookingNotification(data: {
     return { success: true };
   } catch (error) {
     console.error('❌ Failed to send guide booking notification:', error);
+    return { success: false, error };
+  }
+}
+
+/**
+ * Send traveler booking confirmation via Resend
+ */
+export async function sendTravelerBookingConfirmation(data: {
+  travelerEmail: string;
+  travelerName: string;
+  tourName: string;
+  tourDate: Date;
+  guests: number;
+  totalPrice: number;
+  currency: string;
+  guideName: string;
+}): Promise<{ success: boolean; error?: unknown }> {
+  try {
+    const tourDateFormatted = data.tourDate.toLocaleDateString('en-US', {
+      weekday: 'long',
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+    });
+
+    const html = `
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <style>
+    body { font-family: Arial, sans-serif; line-height: 1.6; color: #000; background: #fff; }
+    .container { max-width: 600px; margin: 0 auto; padding: 24px; }
+    .header { border-bottom: 2px solid #000; padding-bottom: 16px; margin-bottom: 24px; }
+    .header h1 { margin: 0; font-size: 24px; color: #000; }
+    .content { color: #000; }
+    .details { border: 1px solid #ddd; padding: 20px; margin: 20px 0; }
+    .row { display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid #eee; }
+    .row:last-child { border-bottom: none; }
+    .label { font-weight: bold; color: #000; }
+    .note { margin: 20px 0; padding: 16px; background: #f5f5f5; border-left: 4px solid #000; }
+    .reminder { margin: 20px 0; font-size: 14px; color: #333; }
+    .footer { margin-top: 32px; padding-top: 16px; border-top: 1px solid #ddd; text-align: center; font-size: 12px; color: #666; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <h1>Your booking request has been received! ✅</h1>
+    </div>
+    <div class="content">
+      <p>Dear ${data.travelerName},</p>
+      <p>Thank you for your booking request. Here is your booking summary:</p>
+      <div class="details">
+        <div class="row"><span class="label">Tour:</span><span>${data.tourName}</span></div>
+        <div class="row"><span class="label">Date:</span><span>${tourDateFormatted}</span></div>
+        <div class="row"><span class="label">Guests:</span><span>${data.guests}</span></div>
+        <div class="row"><span class="label">Total:</span><span><strong>${data.currency} ${data.totalPrice.toLocaleString()}</strong></span></div>
+      </div>
+      <div class="note">
+        Your guide <strong>${data.guideName}</strong> will contact you within 24 hours to confirm.
+      </div>
+      <p class="reminder">
+        Please inform your guide of any allergies or medical conditions if you haven't already.
+      </p>
+    </div>
+    <div class="footer">
+      © 2026 Bucket List
+    </div>
+  </div>
+</body>
+</html>
+    `;
+
+    await resend.emails.send({
+      from: 'Bucket List <noreply@bucketlist.sa>',
+      to: data.travelerEmail,
+      subject: `Booking Request Confirmed - ${data.tourName}`,
+      html,
+    });
+
+    console.log(`✅ Traveler booking confirmation sent to ${data.travelerEmail}`);
+    return { success: true };
+  } catch (error) {
+    console.error('❌ Failed to send traveler booking confirmation:', error);
     return { success: false, error };
   }
 }

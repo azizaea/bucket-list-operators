@@ -1,9 +1,11 @@
 import { Request, Response } from 'express';
 import { PrismaClient } from '@prisma/client';
 import { Decimal } from '@prisma/client/runtime/library';
+import type { AuthRequest } from '../middleware/auth.js';
 import {
   sendGuideStoreBookingNotification,
   sendTravelerBookingConfirmation,
+  sendTravelerStatusUpdate,
 } from '../utils/smtpEmail.js';
 
 const prisma = new PrismaClient();
@@ -168,5 +170,147 @@ export async function createBooking(req: Request, res: Response): Promise<void> 
   } catch (error) {
     console.error('Create guide store booking error:', error);
     res.status(500).json({ success: false, error: 'Failed to create booking' });
+  }
+}
+
+/**
+ * GET /api/guide-stores/bookings - AUTHENTICATED (guide only)
+ * Get all bookings for the authenticated guide
+ */
+export async function getGuideBookings(req: AuthRequest, res: Response): Promise<void> {
+  try {
+    const guideId = req.user?.guideId;
+    if (!guideId) {
+      res.status(401).json({ success: false, error: 'Not authenticated as guide' });
+      return;
+    }
+
+    const bookings = await prisma.guideStoreBooking.findMany({
+      where: { guideId },
+      include: {
+        tour: { select: { title: true, coverImage: true } },
+      },
+      orderBy: { createdAt: 'desc' },
+    });
+
+    res.json({
+      success: true,
+      data: {
+        bookings: bookings.map((b) => ({
+          ...b,
+          totalPrice: Number(b.totalPrice),
+          tour: b.tour,
+        })),
+      },
+    });
+  } catch (error) {
+    console.error('Get guide bookings error:', error);
+    res.status(500).json({ success: false, error: 'Failed to get bookings' });
+  }
+}
+
+/**
+ * PUT /api/guide-stores/bookings/:id/accept - AUTHENTICATED (guide only)
+ * Accept a booking
+ */
+export async function acceptBooking(req: AuthRequest, res: Response): Promise<void> {
+  try {
+    const guideId = req.user?.guideId;
+    if (!guideId) {
+      res.status(401).json({ success: false, error: 'Not authenticated as guide' });
+      return;
+    }
+
+    const bookingId = req.params.id as string;
+
+    const booking = await prisma.guideStoreBooking.findFirst({
+      where: { id: bookingId, guideId },
+      include: { tour: { select: { title: true } } },
+    });
+
+    if (!booking) {
+      res.status(404).json({ success: false, error: 'Booking not found' });
+      return;
+    }
+
+    if (booking.status !== 'pending') {
+      res.status(400).json({ success: false, error: 'Booking is no longer pending' });
+      return;
+    }
+
+    const updated = await prisma.guideStoreBooking.update({
+      where: { id: bookingId },
+      data: { status: 'accepted' },
+      include: { tour: { select: { title: true } } },
+    });
+
+    sendTravelerStatusUpdate({
+      travelerEmail: booking.email,
+      travelerName: booking.fullName,
+      tourName: booking.tour.title,
+      tourDate: booking.tourDate,
+      status: 'accepted',
+    }).catch((err) => console.error('Traveler status update email failed:', err));
+
+    res.json({
+      success: true,
+      data: { booking: { ...updated, totalPrice: Number(updated.totalPrice) } },
+    });
+  } catch (error) {
+    console.error('Accept booking error:', error);
+    res.status(500).json({ success: false, error: 'Failed to accept booking' });
+  }
+}
+
+/**
+ * PUT /api/guide-stores/bookings/:id/decline - AUTHENTICATED (guide only)
+ * Decline a booking
+ */
+export async function declineBooking(req: AuthRequest, res: Response): Promise<void> {
+  try {
+    const guideId = req.user?.guideId;
+    if (!guideId) {
+      res.status(401).json({ success: false, error: 'Not authenticated as guide' });
+      return;
+    }
+
+    const bookingId = req.params.id as string;
+
+    const booking = await prisma.guideStoreBooking.findFirst({
+      where: { id: bookingId, guideId },
+      include: { tour: { select: { title: true } } },
+    });
+
+    if (!booking) {
+      res.status(404).json({ success: false, error: 'Booking not found' });
+      return;
+    }
+
+    if (booking.status !== 'pending') {
+      res.status(400).json({ success: false, error: 'Booking is no longer pending' });
+      return;
+    }
+
+    const updated = await prisma.guideStoreBooking.update({
+      where: { id: bookingId },
+      data: { status: 'declined' },
+      include: { tour: { select: { title: true } } },
+    });
+
+    sendTravelerStatusUpdate({
+      travelerEmail: booking.email,
+      travelerName: booking.fullName,
+      tourName: booking.tour.title,
+      tourDate: booking.tourDate,
+      status: 'declined',
+    }).catch((err) => console.error('Traveler status update email failed:', err));
+
+    res.json({
+      success: true,
+      data: { booking: { ...updated, totalPrice: Number(updated.totalPrice) } },
+    });
+  } catch (error) {
+    console.error('Decline booking error:', error);
+    res.status(500).json({ success: false, error: 'Failed to decline booking' });
   }
 }

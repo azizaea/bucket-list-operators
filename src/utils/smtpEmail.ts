@@ -222,3 +222,82 @@ export async function sendTravelerBookingConfirmation(data: {
     return { success: false, error };
   }
 }
+
+/**
+ * Send traveler status update (accepted/declined) via Resend
+ */
+export async function sendTravelerStatusUpdate(data: {
+  travelerEmail: string;
+  travelerName: string;
+  tourName: string;
+  tourDate: Date;
+  status: 'accepted' | 'declined';
+}): Promise<{ success: boolean; error?: unknown }> {
+  try {
+    const tourDateFormatted = data.tourDate.toLocaleDateString('en-US', {
+      weekday: 'long',
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+    });
+
+    const isAccepted = data.status === 'accepted';
+    const headerBg = isAccepted ? '#059669' : '#6b7280';
+    const headerText = isAccepted
+      ? 'Your booking has been accepted'
+      : 'Your booking was not accepted';
+    const bodyText = isAccepted
+      ? 'Great news! Your guide has accepted your booking. You\'re all set for your tour.'
+      : 'Your booking was not accepted. Please browse other tours to find your perfect experience.';
+
+    const html = `
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <style>
+    body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
+    .container { max-width: 600px; margin: 0 auto; padding: 24px; }
+    .header { background: ${headerBg}; color: white; padding: 24px; text-align: center; border-radius: 8px 8px 0 0; }
+    .content { background: #f9f9f9; padding: 24px; border-radius: 0 0 8px 8px; }
+    .details { background: white; padding: 20px; border-radius: 8px; margin: 16px 0; border: 1px solid #eee; }
+    .footer { margin-top: 24px; text-align: center; font-size: 12px; color: #666; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <h1 style="margin: 0;">${headerText} ${isAccepted ? '✅' : ''}</h1>
+    </div>
+    <div class="content">
+      <p>Dear ${data.travelerName},</p>
+      <p>${bodyText}</p>
+      <div class="details">
+        <p><strong>Tour:</strong> ${data.tourName}</p>
+        <p><strong>Date:</strong> ${tourDateFormatted}</p>
+      </div>
+    </div>
+    <div class="footer">© 2026 Bucket List</div>
+  </div>
+</body>
+</html>
+    `;
+
+    await resend.emails.send({
+      from: 'Bucket List <noreply@bucketlist.sa>',
+      to: data.travelerEmail,
+      subject: isAccepted
+        ? `Booking Accepted - ${data.tourName}`
+        : `Booking Update - ${data.tourName}`,
+      html,
+    });
+
+    console.log(`✅ Traveler status update (${data.status}) sent to ${data.travelerEmail}`);
+    return { success: true };
+  } catch (error) {
+    console.error('❌ Failed to send traveler status update:', error);
+    return { success: false, error };
+  }
+}

@@ -791,6 +791,127 @@ export async function uploadProfilePicture(req: AuthRequest, res: Response): Pro
 }
 
 /**
+ * POST /api/guides/profile/hero-video - Upload hero video for store
+ * Accepts multipart/form-data with field heroVideo
+ */
+export async function uploadHeroVideo(req: AuthRequest, res: Response): Promise<void> {
+  try {
+    const guideId = req.user?.guideId;
+    if (!guideId) {
+      res.status(401).json({ success: false, error: 'Not authenticated as guide' });
+      return;
+    }
+
+    if (!req.file) {
+      res.status(400).json({ success: false, error: 'No file uploaded. Use field name: heroVideo' });
+      return;
+    }
+
+    const apiBase = process.env.API_BASE_URL || 'https://api.bucketlist.sa';
+    const heroVideoUrl = `${apiBase}/uploads/videos/${req.file.filename}`;
+
+    await prisma.storeSettings.upsert({
+      where: { guideId },
+      create: { guideId, heroVideoUrl },
+      update: { heroVideoUrl },
+    });
+
+    res.json({ success: true, data: { heroVideoUrl } });
+  } catch (error) {
+    console.error('Upload hero video error:', error);
+    res.status(500).json({ success: false, error: 'Failed to upload hero video' });
+  }
+}
+
+/**
+ * POST /api/guides/itineraries/:id/cover-video - Upload cover video for itinerary
+ * Accepts multipart/form-data with field coverVideo
+ */
+export async function uploadItineraryCoverVideo(req: AuthRequest, res: Response): Promise<void> {
+  try {
+    const guideId = req.user?.guideId;
+    const itineraryId = String(req.params.id || '');
+
+    if (!guideId) {
+      res.status(401).json({ success: false, error: 'Not authenticated as guide' });
+      return;
+    }
+
+    if (!req.file) {
+      res.status(400).json({ success: false, error: 'No file uploaded. Use field name: coverVideo' });
+      return;
+    }
+
+    const existing = await prisma.guideItinerary.findFirst({
+      where: { id: itineraryId, guideId },
+    });
+
+    if (!existing) {
+      res.status(404).json({ success: false, error: 'Itinerary not found' });
+      return;
+    }
+
+    const apiBase = process.env.API_BASE_URL || 'https://api.bucketlist.sa';
+    const coverVideoUrl = `${apiBase}/uploads/videos/${req.file.filename}`;
+
+    await prisma.guideItinerary.update({
+      where: { id: itineraryId },
+      data: { coverVideoUrl },
+    });
+
+    res.json({ success: true, data: { coverVideoUrl } });
+  } catch (error) {
+    console.error('Upload cover video error:', error);
+    res.status(500).json({ success: false, error: 'Failed to upload cover video' });
+  }
+}
+
+/**
+ * POST /api/guides/itineraries/:id/photos - Upload multiple photos for itinerary
+ * Accepts multipart/form-data with field photos (multiple files)
+ */
+export async function uploadItineraryPhotos(req: AuthRequest, res: Response): Promise<void> {
+  try {
+    const guideId = req.user?.guideId;
+    const itineraryId = String(req.params.id || '');
+
+    if (!guideId) {
+      res.status(401).json({ success: false, error: 'Not authenticated as guide' });
+      return;
+    }
+
+    const files = req.files as Express.Multer.File[] | undefined;
+    if (!files || files.length === 0) {
+      res.status(400).json({ success: false, error: 'No files uploaded. Use field name: photos' });
+      return;
+    }
+
+    const existing = await prisma.guideItinerary.findFirst({
+      where: { id: itineraryId, guideId },
+    });
+
+    if (!existing) {
+      res.status(404).json({ success: false, error: 'Itinerary not found' });
+      return;
+    }
+
+    const apiBase = process.env.API_BASE_URL || 'https://api.bucketlist.sa';
+    const newUrls = files.map((f) => `${apiBase}/uploads/tours/photos/${f.filename}`);
+    const updatedPhotos = [...(existing.photos ?? []), ...newUrls];
+
+    await prisma.guideItinerary.update({
+      where: { id: itineraryId },
+      data: { photos: updatedPhotos },
+    });
+
+    res.json({ success: true, data: { photos: updatedPhotos } });
+  } catch (error) {
+    console.error('Upload itinerary photos error:', error);
+    res.status(500).json({ success: false, error: 'Failed to upload photos' });
+  }
+}
+
+/**
  * POST /api/guides/forgot-password - Send password reset code via email
  */
 export async function forgotPassword(req: AuthRequest, res: Response): Promise<void> {

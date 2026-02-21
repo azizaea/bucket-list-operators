@@ -133,7 +133,7 @@ export async function getTours(req, res) {
 export async function getTour(req, res) {
     try {
         const operatorId = req.user?.operatorId;
-        const tourId = req.params.id;
+        const tourId = typeof req.params.id === 'string' ? req.params.id : String(req.params.id ?? '');
         if (!operatorId) {
             res.status(401).json({
                 success: false,
@@ -173,7 +173,7 @@ export async function getTour(req, res) {
 export async function updateTour(req, res) {
     try {
         const operatorId = req.user?.operatorId;
-        const tourId = req.params.id;
+        const tourId = typeof req.params.id === 'string' ? req.params.id : String(req.params.id ?? '');
         if (!operatorId) {
             res.status(401).json({
                 success: false,
@@ -251,7 +251,7 @@ export async function updateTour(req, res) {
 export async function deleteTour(req, res) {
     try {
         const operatorId = req.user?.operatorId;
-        const tourId = req.params.id;
+        const tourId = typeof req.params.id === 'string' ? req.params.id : String(req.params.id ?? '');
         if (!operatorId) {
             res.status(401).json({
                 success: false,

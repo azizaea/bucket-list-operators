@@ -599,6 +599,45 @@ export async function updateItinerary(req, res) {
     }
 }
 /**
+ * POST /api/guides/itineraries/:id/cover-image - Upload cover image
+ * Accepts multipart/form-data with field coverImage
+ */
+export async function uploadItineraryCoverImage(req, res) {
+    try {
+        const guideId = req.user?.guideId;
+        const itineraryId = String(req.params.id || '');
+        if (!guideId) {
+            res.status(401).json({ success: false, error: 'Not authenticated as guide' });
+            return;
+        }
+        if (!req.file) {
+            res.status(400).json({ success: false, error: 'No file uploaded. Use field name: coverImage' });
+            return;
+        }
+        const existing = await prisma.guideItinerary.findFirst({
+            where: { id: itineraryId, guideId },
+        });
+        if (!existing) {
+            res.status(404).json({ success: false, error: 'Itinerary not found' });
+            return;
+        }
+        const apiBase = process.env.API_BASE_URL || 'https://api.bucketlist.sa';
+        const coverImageUrl = `${apiBase}/uploads/tours/${req.file.filename}`;
+        await prisma.guideItinerary.update({
+            where: { id: itineraryId },
+            data: { coverImage: coverImageUrl },
+        });
+        res.json({
+            success: true,
+            data: { coverImageUrl },
+        });
+    }
+    catch (error) {
+        console.error('Upload cover image error:', error);
+        res.status(500).json({ success: false, error: 'Failed to upload cover image' });
+    }
+}
+/**
  * DELETE /api/guides/itineraries/:id - Delete itinerary
  */
 export async function deleteItinerary(req, res) {

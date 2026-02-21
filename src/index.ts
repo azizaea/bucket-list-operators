@@ -25,7 +25,8 @@ const prisma = new PrismaClient();
 // Middleware
 app.use(cors());
 app.use(express.json());
-app.use('/uploads', express.static('uploads'));
+// Serve uploads (default: ./uploads; production: set UPLOADS_STATIC_DIR e.g. /var/www/uploads)
+app.use('/uploads', express.static(process.env.UPLOADS_STATIC_DIR || 'uploads'));
 
 
 // API Info Route

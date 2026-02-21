@@ -1,4 +1,5 @@
 import { Router } from 'express';
+import fs from 'fs';
 import multer from 'multer';
 import path from 'path';
 import {
@@ -18,6 +19,7 @@ import {
   getGuideItineraries,
   updateItinerary,
   deleteItinerary,
+  uploadItineraryCoverImage,
 } from '../controllers/guideController.js';
 import { authMiddleware, requireRole } from '../middleware/auth.js';
 
@@ -62,15 +64,32 @@ router.get(
 );
 
 // Profile picture upload config
-const storage = multer.diskStorage({
+const profileStorage = multer.diskStorage({
   destination: 'uploads/profile-pictures/',
   filename: (_req, file, cb) => {
     const uniqueName = Date.now() + '-' + Math.round(Math.random() * 1e9) + path.extname(file.originalname);
     cb(null, uniqueName);
   },
 });
-const upload = multer({ storage, limits: { fileSize: 5 * 1024 * 1024 } });
+const upload = multer({ storage: profileStorage, limits: { fileSize: 5 * 1024 * 1024 } });
+
+// Tour cover image upload config - save to uploads/tours/ (or UPLOAD_PATH for production e.g. /var/www/uploads/tours)
+const toursUploadDir = process.env.UPLOAD_PATH || path.join(process.cwd(), 'uploads', 'tours');
+try {
+  fs.mkdirSync(toursUploadDir, { recursive: true });
+} catch {
+  // dir may already exist
+}
+const tourCoverStorage = multer.diskStorage({
+  destination: (_req, _file, cb) => cb(null, toursUploadDir),
+  filename: (_req, file, cb) => {
+    const uniqueName = Date.now() + '-' + Math.round(Math.random() * 1e9) + path.extname(file.originalname);
+    cb(null, uniqueName);
+  },
+});
+const tourCoverUpload = multer({ storage: tourCoverStorage, limits: { fileSize: 5 * 1024 * 1024 } });
 
 router.post('/profile-picture', authMiddleware, requireRole('guide'), upload.single('profilePicture'), uploadProfilePicture);
+router.post('/itineraries/:id/cover-image', authMiddleware, requireRole('guide'), tourCoverUpload.single('coverImage'), uploadItineraryCoverImage);
 
 export default router;

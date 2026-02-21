@@ -46,6 +46,28 @@ export async function getStoreBySlug(req: Request, res: Response): Promise<void>
       return;
     }
 
+    const tours = await prisma.guideItinerary.findMany({
+      where: {
+        guideId: guide.id,
+        isPublished: true,
+      },
+      orderBy: { createdAt: 'desc' },
+      select: {
+        id: true,
+        title: true,
+        price: true,
+        estimatedDuration: true,
+        maxGuests: true,
+        coverImage: true,
+        coverVideoUrl: true,
+        photos: true,
+        isPublished: true,
+        includes: true,
+        excludes: true,
+        destinations: true,
+      },
+    });
+
     const { storeSettings, ...guideData } = guide;
     res.json({
       success: true,
@@ -55,6 +77,21 @@ export async function getStoreBySlug(req: Request, res: Response): Promise<void>
           rating: guideData.rating != null ? Number(guideData.rating) : null,
         },
         store: storeSettings,
+        tours: tours.map((t) => ({
+          id: t.id,
+          title: t.title,
+          description: null,
+          price: t.price != null ? Number(t.price) : null,
+          estimatedDuration: t.estimatedDuration,
+          maxGroupSize: t.maxGuests ?? null,
+          coverImage: t.coverImage ?? null,
+          coverVideoUrl: t.coverVideoUrl ?? null,
+          photos: t.photos ?? [],
+          isPublished: t.isPublished,
+          includes: t.includes ?? [],
+          excludes: t.excludes ?? [],
+          destinations: t.destinations ?? [],
+        })),
       },
     });
   } catch (error) {

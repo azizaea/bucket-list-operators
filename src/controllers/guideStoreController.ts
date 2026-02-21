@@ -18,6 +18,7 @@ export async function getStoreBySlug(req: Request, res: Response): Promise<void>
         id: true,
         fullName: true,
         storeSlug: true,
+        licenseNumber: true,
         bio: true,
         languages: true,
         specialties: true,

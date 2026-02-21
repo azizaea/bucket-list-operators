@@ -14,7 +14,18 @@ export async function getStoreBySlug(req: Request, res: Response): Promise<void>
 
     const guide = await prisma.guide.findFirst({
       where: { storeSlug: slug },
-      include: { storeSettings: true },
+      select: {
+        id: true,
+        fullName: true,
+        storeSlug: true,
+        bio: true,
+        languages: true,
+        specialties: true,
+        location: true,
+        rating: true,
+        profilePictureUrl: true,
+        storeSettings: true,
+      },
     });
 
     if (!guide) {
@@ -22,15 +33,15 @@ export async function getStoreBySlug(req: Request, res: Response): Promise<void>
       return;
     }
 
+    const { storeSettings, ...guideData } = guide;
     res.json({
       success: true,
       data: {
         guide: {
-          id: guide.id,
-          fullName: guide.fullName,
-          storeSlug: guide.storeSlug,
+          ...guideData,
+          rating: guideData.rating != null ? Number(guideData.rating) : null,
         },
-        store: guide.storeSettings,
+        store: storeSettings,
       },
     });
   } catch (error) {
